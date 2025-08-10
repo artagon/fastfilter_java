@@ -44,7 +44,7 @@ jobs:
         build:ci --curses=no
         build:ci --color=yes
         build:ci --show_timestamps
-        build:ci --local_resources=memory=2048,cpu=2
+        build:ci --local_resources=2048,2,2048
         build:ci --incompatible_strict_action_env=false
         
         # Force use of local JDK 24 for compilation
