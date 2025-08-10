@@ -1,0 +1,3 @@
+[submodule "fastfilter_cpp"]
+	path = fastfilter_cpp
+	url = https://github.com/FastFilter/fastfilter_cpp.git

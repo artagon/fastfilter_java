@@ -48,11 +48,11 @@ jobs:
         build:ci --local_cpu_resources=2
         build:ci --incompatible_strict_action_env=false
         
-        # Force use of local JDK 24 for compilation
-        build:ci --java_runtime_version=local_jdk
-        build:ci --tool_java_runtime_version=local_jdk
-        build:ci --java_language_version=24
-        build:ci --tool_java_language_version=24
+        # Use remote JDK 21 for toolchain compatibility
+        build:ci --java_runtime_version=remotejdk_21
+        build:ci --tool_java_runtime_version=remotejdk_21
+        build:ci --java_language_version=21
+        build:ci --tool_java_language_version=21
         
         # Disable all caching to avoid GitHub Actions cache issues
         build:ci --remote_cache=
