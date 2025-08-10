@@ -12,10 +12,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up JDK 24
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '24'
         distribution: 'temurin'
@@ -72,7 +72,7 @@ jobs:
     
     - name: Upload Benchmark Results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: jmh-benchmark-results
         path: |
