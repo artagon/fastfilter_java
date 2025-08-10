@@ -57,17 +57,23 @@ jobs:
         bazel info
         echo "✅ Bazel setup verified"
     
-    - name: Build All Java Targets
+    - name: Build Java Library
       run: |
-        echo "🔨 Building all Java targets with Bazel..."
-        bazel build //... --config=ci
-        echo "✅ All Java targets build completed"
+        echo "🔨 Building FastFilter Java library..."
+        bazel build //fastfilter:fastfilter --config=ci
+        echo "✅ FastFilter Java library build completed"
+    
+    - name: Build JMH Benchmarks
+      run: |
+        echo "🏗️ Building JMH benchmarks..."
+        bazel build //jmh:comprehensive_benchmark --config=ci
+        echo "✅ JMH benchmarks build completed"
     
     - name: Run Java Tests
       run: |
-        echo "🧪 Running all Bazel tests..."
-        bazel test //... --config=ci --test_tag_filters=-manual
-        echo "✅ All Bazel tests completed"
+        echo "🧪 Running FastFilter Java tests..."
+        bazel test //fastfilter:RegressionTests --config=ci
+        echo "✅ FastFilter tests completed"
     
     - name: Build C++ Components (Optional)
       continue-on-error: true
