@@ -11,16 +11,35 @@
     <modules>
         <module>fastfilter</module>
         <module>jmh</module>
-    </modules>
+        <module>fastfilter_cpp_ffi</module>
+	</modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <junit.version>4.13.1</junit.version>
-        <jmh.version>1.22</jmh.version>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <maven.surefire.version>2.19.1</maven.surefire.version>
-    </properties>
+        <junit.jupiter.version>5.11.0</junit.jupiter.version>
+        <jmh.version>1.37</jmh.version>
+        <maven.compiler.source>24</maven.compiler.source>
+        <maven.compiler.target>24</maven.compiler.target>
+		<maven.compiler.release>24</maven.compiler.release>
+        <maven.surefire.version>3.5.0</maven.surefire.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.shade.plugin.version>3.6.0</maven.shade.plugin.version>
+        <pitest.maven.version>1.16.3</pitest.maven.version>
+        
+        <!-- Bazel integration properties -->
+        <bazel.benchmark.size>100000</bazel.benchmark.size>
+        <exec.maven.plugin.version>3.4.1</exec.maven.plugin.version>
+		<testcontainers.version>1.20.3</testcontainers.version>
+        
+        <!-- Native library properties -->
+        <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
+		<mockito.version>5.12.0</mockito.version>
+		<testcontainers.commons-compress.version>1.26.0</testcontainers.commons-compress.version>
+		<testcontainers.commons-lang3.version>3.18.0</testcontainers.commons-lang3.version>
+        
+        <!-- .env file support -->
+        <dotenv.maven.plugin.version>1.0.0</dotenv.maven.plugin.version>
+	</properties>
 
     <name>FastFilter</name>
     <description>Fast Approximate Membership Filters in Java</description>
@@ -51,18 +70,512 @@
       <url>https://github.com/FastFilter/fastfilter_java/tree/master</url>
     </scm>
 
+    <build>
+        <plugins>
+            <!-- .env file support -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.2.1</version>
+                <executions>
+                    <execution>
+                        <id>load-env-files</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>read-project-properties</goal>
+                        </goals>
+                        <configuration>
+                            <files>
+                                <!-- Load platform-specific .env file first if it exists -->
+                                <file>${project.basedir}/.env.${os.name}-${os.arch}</file>
+                                <!-- Then load generic .env file -->
+                                <file>${project.basedir}/.env</file>
+                            </files>
+                            <quiet>true</quiet>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            <!-- OS and architecture detection for .env file selection -->
+            <plugin>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os.maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>detect</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
     <distributionManagement>
+      <!-- GitHub Packages (Primary) -->
       <snapshotRepository>
-        <id>ossrh</id>
-        <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        <id>github</id>
+        <name>GitHub Packages</name>
+        <url>https://maven.pkg.github.com/FastFilter/fastfilter_java</url>
       </snapshotRepository>
       <repository>
-        <id>ossrh</id>
-        <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        <id>github</id>
+        <name>GitHub Packages</name>
+        <url>https://maven.pkg.github.com/FastFilter/fastfilter_java</url>
       </repository>
+      
+      <!-- Maven Central (Secondary) -->
+      <site>
+        <id>ossrh-snapshots</id>
+        <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+      </site>
     </distributionManagement>
+    
+    <!-- Repositories for dependency resolution -->
+    <repositories>
+      <repository>
+        <id>github</id>
+        <name>GitHub FastFilter Packages</name>
+        <url>https://maven.pkg.github.com/FastFilter/fastfilter_java</url>
+        <snapshots>
+          <enabled>true</enabled>
+        </snapshots>
+        <releases>
+          <enabled>true</enabled>
+        </releases>
+      </repository>
+    </repositories>
 
     <profiles>
+		<profile>
+			<id>artagon-oss-dev</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+		</profile>
+        <profile>
+            <id>bazel</id>
+            <activation>
+                <property>
+                    <name>bazel</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.4.1</version>
+                        <executions>
+                            <execution>
+                                <id>bazel-build-java</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bazel</executable>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>//fastfilter:fastfilter</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>bazel-build-cpp</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bazel</executable>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>@fastfilter_cpp//:fastfilter_cpp_core</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>bazel-test</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bazel</executable>
+                                    <arguments>
+                                        <argument>test</argument>
+                                        <argument>//fastfilter:RegressionTests</argument>
+                                        <argument>--test_output=errors</argument>
+                                    </arguments>
+                                    <successCodes>
+                                        <successCode>0</successCode>
+                                        <successCode>3</successCode>
+                                    </successCodes>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>bazel-benchmarks</id>
+            <activation>
+                <property>
+                    <name>bazel.benchmarks</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.4.1</version>
+                        <executions>
+                            <execution>
+                                <id>bazel-build-cpp-benchmarks</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bazel</executable>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>@fastfilter_cpp//:bulk_insert_and_query</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>bazel-run-cpp-benchmarks</id>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bazel</executable>
+                                    <arguments>
+                                        <argument>run</argument>
+                                        <argument>@fastfilter_cpp//:bulk_insert_and_query</argument>
+                                        <argument>--</argument>
+                                        <argument>${bazel.benchmark.size}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>bazel-build-jmh-benchmarks</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bazel</executable>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>//jmh:comprehensive_benchmark</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>bazel-run-jmh-benchmarks</id>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bazel</executable>
+                                    <arguments>
+                                        <argument>run</argument>
+                                        <argument>//jmh:comprehensive_benchmark</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>native-libraries</id>
+            <activation>
+                <property>
+                    <name>build.native</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <!-- OS and architecture detection -->
+                    <plugin>
+                        <groupId>kr.motd.maven</groupId>
+                        <artifactId>os-maven-plugin</artifactId>
+                        <version>${os.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>detect</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Build current platform native library -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>build-current-platform-native</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>mvn</executable>
+                                    <arguments>
+                                        <argument>compile</argument>
+                                        <argument>-pl</argument>
+                                        <argument>native-libs</argument>
+                                        <argument>-am</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>native-cross-compile</id>
+            <activation>
+                <property>
+                    <name>build.native.cross</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <!-- Cross-compile native libraries for all platforms -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>build-all-platform-natives</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>mvn</executable>
+                                    <arguments>
+                                        <argument>compile</argument>
+                                        <argument>-pl</argument>
+                                        <argument>native-libs</argument>
+                                        <argument>-am</argument>
+                                        <argument>-Pnative.cross.compile</argument>
+                                        <argument>-Dnative.cross.compile=true</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>release-native</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <!-- Build all platform-specific native libraries for release -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>build-release-natives</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>mvn</executable>
+                                    <arguments>
+                                        <argument>package</argument>
+                                        <argument>-pl</argument>
+                                        <argument>native-libs</argument>
+                                        <argument>-am</argument>
+                                        <argument>-Pnative.cross.compile</argument>
+                                        <argument>-Dnative.cross.compile=true</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!-- =========================================== -->
+        <!-- GitHub Packages Deployment Profiles -->
+        <!-- =========================================== -->
+        
+        <profile>
+            <id>github-packages</id>
+            <activation>
+                <property>
+                    <name>deploy.github</name>
+                </property>
+            </activation>
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>github</id>
+                    <name>GitHub Packages</name>
+                    <url>https://maven.pkg.github.com/FastFilter/fastfilter_java</url>
+                </snapshotRepository>
+                <repository>
+                    <id>github</id>
+                    <name>GitHub Packages</name>
+                    <url>https://maven.pkg.github.com/FastFilter/fastfilter_java</url>
+                </repository>
+            </distributionManagement>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.11.2</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <source>24</source>
+                            <release>24</release>
+                            <additionalJOptions>
+                                <additionalJOption>--enable-preview</additionalJOption>
+                            </additionalJOptions>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <profile>
+            <id>github-packages-snapshot</id>
+            <activation>
+                <property>
+                    <name>deploy.github.snapshot</name>
+                </property>
+            </activation>
+            <properties>
+                <maven.deploy.skip>false</maven.deploy.skip>
+            </properties>
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>github</id>
+                    <name>GitHub Packages Snapshots</name>
+                    <url>https://maven.pkg.github.com/FastFilter/fastfilter_java</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+        
+        <profile>
+            <id>maven-central</id>
+            <activation>
+                <property>
+                    <name>deploy.central</name>
+                </property>
+            </activation>
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>ossrh</id>
+                    <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+                </snapshotRepository>
+                <repository>
+                    <id>ossrh</id>
+                    <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+                </repository>
+            </distributionManagement>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.11.2</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <source>24</source>
+                            <release>24</release>
+                            <additionalJOptions>
+                                <additionalJOption>--enable-preview</additionalJOption>
+                            </additionalJOptions>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.7</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
         <profile>
             <id>release-sign-artifacts</id>
             <activation>
@@ -76,7 +589,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>2.2.1</version>
+                        <version>3.3.1</version>
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
@@ -89,7 +602,7 @@
                    <plugin>
                        <groupId>org.apache.maven.plugins</groupId>
                        <artifactId>maven-javadoc-plugin</artifactId>
-                       <version>2.9.1</version>
+                       <version>3.11.2</version>
                        <executions>
                            <execution>
                                <id>attach-javadocs</id>
@@ -102,7 +615,7 @@
                    <plugin>
                        <groupId>org.apache.maven.plugins</groupId>
                        <artifactId>maven-gpg-plugin</artifactId>
-                       <version>1.5</version>
+                       <version>3.2.7</version>
                        <executions>
                            <execution>
                                <id>sign-artifacts</id>
@@ -120,12 +633,57 @@
 
     <dependencyManagement>
         <dependencies>
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>${junit.version}</version>
-                <scope>test</scope>
-            </dependency>
+			<dependency>
+				<groupId>org.testcontainers</groupId>
+				<artifactId>testcontainers-bom</artifactId>
+				<version>${testcontainers.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+				<exclusions>
+					<exclusion>
+						<groupId>org.apache.commons</groupId>
+						<artifactId>commons-compress</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<dependency>
+				<groupId>com.github.docker-java</groupId>
+				<artifactId>docker-java</artifactId>
+				<version>3.3.4</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-compress</artifactId>
+				<version>${testcontainers.commons-compress.version}</version>
+				<scope>test</scope>
+				<exclusions>
+					<exclusion>
+						<groupId>org.apache.commons</groupId>
+						<artifactId>commons-lang3</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-lang3</artifactId>
+				<version>${testcontainers.commons-lang3.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit</groupId>
+				<artifactId>junit-bom</artifactId>
+				<version>${junit.jupiter.version}</version>
+				<type>pom</type>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.mockito</groupId>
+				<artifactId>mockito-bom</artifactId>
+				<version>${mockito.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
         </dependencies>
     </dependencyManagement>
 
