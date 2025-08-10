@@ -22,12 +22,12 @@ jobs:
     
     - name: Set up Bazel (Manual Installation)
       run: |
-        echo "📥 Installing Bazelisk manually to avoid cache issues..."
-        curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.22.1/bazelisk-linux-amd64"
+        echo "📥 Installing Bazelisk v1.26.0 manually to avoid cache issues..."
+        curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.26.0/bazelisk-linux-amd64"
         chmod +x bazelisk-linux-amd64
         sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
         bazel version
-        echo "✅ Bazel installed successfully"
+        echo "✅ Bazel v1.26.0 installed successfully"
     
     - name: Configure Bazel for CI
       run: |
