@@ -24,6 +24,9 @@ jobs:
       uses: bazelbuild/setup-bazelisk@v2
       with:
         bazelisk-version: 'v1.22.1'
+      env:
+        # Disable GitHub Actions cache to avoid 400 errors
+        CACHE_VERSION: disabled
     
     - name: Configure Bazel for CI
       run: |
@@ -43,6 +46,11 @@ jobs:
         build:ci --local_ram_resources=2048
         build:ci --local_cpu_resources=2
         build:ci --incompatible_strict_action_env=false
+        
+        # Disable all caching to avoid GitHub Actions cache issues
+        build:ci --noremote_cache
+        build:ci --nodisk_cache
+        build:ci --repository_cache=/tmp/empty_cache
         
         test:ci --test_output=errors
         test:ci --test_summary=short
