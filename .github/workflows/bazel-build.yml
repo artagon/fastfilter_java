@@ -20,13 +20,14 @@ jobs:
         java-version: '24'
         distribution: 'temurin'
     
-    - name: Set up Bazel
-      uses: bazelbuild/setup-bazelisk@v2
-      with:
-        bazelisk-version: 'v1.22.1'
-      env:
-        # Disable GitHub Actions cache to avoid 400 errors
-        CACHE_VERSION: disabled
+    - name: Set up Bazel (Manual Installation)
+      run: |
+        echo "📥 Installing Bazelisk manually to avoid cache issues..."
+        curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.22.1/bazelisk-linux-amd64"
+        chmod +x bazelisk-linux-amd64
+        sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+        bazel version
+        echo "✅ Bazel installed successfully"
     
     - name: Configure Bazel for CI
       run: |
