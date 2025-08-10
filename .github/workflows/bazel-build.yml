@@ -49,8 +49,8 @@ jobs:
         build:ci --incompatible_strict_action_env=false
         
         # Disable all caching to avoid GitHub Actions cache issues
-        build:ci --noremote_cache
-        build:ci --nodisk_cache
+        build:ci --remote_cache=
+        build:ci --disk_cache=
         build:ci --repository_cache=/tmp/empty_cache
         
         test:ci --test_output=errors
