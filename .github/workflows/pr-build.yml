@@ -36,7 +36,7 @@ jobs:
     - name: Set up Bazel
       uses: bazelbuild/setup-bazelisk@v2
       with:
-        bazelisk-version: latest
+        bazelisk-version: v1.22.1
     
     - name: Cache Bazel
       uses: actions/cache@v4
@@ -67,7 +67,10 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: native-libs-${{ matrix.platform }}-jdk${{ matrix.java }}
-        path: fastfilter_cpp_ffi/native_libs/*/target/*-${{ matrix.platform }}.jar
+        path: |
+          fastfilter_cpp_ffi/native_libs/*/target/*.jar
+          fastfilter_cpp_ffi/native_libs/target/*.jar
+          target/*.jar
 
   build-native-all-platforms:
     runs-on: ubuntu-latest
@@ -86,7 +89,7 @@ jobs:
     - name: Set up Bazel
       uses: bazelbuild/setup-bazelisk@v2
       with:
-        bazelisk-version: latest
+        bazelisk-version: v1.22.1
     
     - name: Cache Bazel
       uses: actions/cache@v4
@@ -104,13 +107,15 @@ jobs:
         sudo apt-get install -y mingw-w64 gcc-multilib g++-multilib gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
     
     - name: Build all native libraries (cross-compile)
-      run: mvn package -Pnative-cross-compile -Dnative.cross.compile=true -B
+      run: mvn package -Pnative-cross-compile -Dbuild.native.cross=true -B
     
     - name: Upload cross-compiled artifacts
       uses: actions/upload-artifact@v4
       with:
         name: native-libs-all-platforms
-        path: fastfilter_cpp_ffi/native_libs/*/target/*.jar
+        path: |
+          fastfilter_cpp_ffi/native_libs/*/target/*.jar
+          target/*.jar
 
   build-native-linux-arm64:
     runs-on: ubuntu-latest
@@ -129,17 +134,19 @@ jobs:
           -w /workspace \
           eclipse-temurin:24-jdk \
           bash -c "
-            apt-get update && apt-get install -y wget unzip build-essential
+            apt-get update && apt-get install -y wget unzip build-essential maven
             wget https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -O /usr/local/bin/bazel
             chmod +x /usr/local/bin/bazel
-            ./mvnw package -Pnative-linux-arm64 -Dbuild.native=true -B
+            mvn package -Pnative-libraries -Dbuild.native=true -B
           "
     
     - name: Upload Linux ARM64 artifacts
       uses: actions/upload-artifact@v4
       with:
         name: native-libs-linux-arm64
-        path: fastfilter_cpp_ffi/native_libs/linux-arm64/target/*.jar
+        path: |
+          fastfilter_cpp_ffi/native_libs/linux-arm64/target/*.jar
+          target/*.jar
 
   cpp-benchmarks:
     strategy:
@@ -156,7 +163,7 @@ jobs:
     - name: Set up Bazel
       uses: bazelbuild/setup-bazelisk@v2
       with:
-        bazelisk-version: latest
+        bazelisk-version: v1.22.1
     
     - name: Cache Bazel
       uses: actions/cache@v4
@@ -250,10 +257,11 @@ jobs:
     - name: Run integration tests with native libraries
       run: |
         # Install native libraries to local maven repo
-        find . -name "*native*.jar" -exec mvn install:install-file -Dfile={} -DgroupId=io.github.fastfilter -DartifactId=$(basename {} .jar) -Dversion=1.0.3-SNAPSHOT -Dpackaging=jar \;
+        find . -name "*native*.jar" -type f -exec bash -c 'mvn install:install-file -Dfile="$1" -DgroupId=io.github.fastfilter -DartifactId="$(basename "$1" .jar)" -Dversion=1.0.3-SNAPSHOT -Dpackaging=jar' _ {} \;
         
         # Run tests with native libraries
-        mvn test -Dtest=TestAllFilters -Djava.library.path=./fastfilter_cpp_ffi/native_libs --enable-preview --enable-native-access=ALL-UNNAMED -B
+        export MAVEN_OPTS="--enable-preview --enable-native-access=ALL-UNNAMED"
+        mvn test -Dtest=TestAllFilters -Djava.library.path=./fastfilter_cpp_ffi/native_libs -B
 
   # Deploy snapshots to GitHub Packages (only on main branch)
   deploy-snapshot:

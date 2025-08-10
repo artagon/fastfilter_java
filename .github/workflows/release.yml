@@ -53,7 +53,7 @@ jobs:
     - name: Set up Bazel
       uses: bazelbuild/setup-bazelisk@v2
       with:
-        bazelisk-version: latest
+        bazelisk-version: v1.22.1
     
     - name: Cache Bazel
       uses: actions/cache@v4
@@ -77,7 +77,7 @@ jobs:
           -w /workspace \
           eclipse-temurin:24-jdk \
           bash -c "
-            apt-get update && apt-get install -y wget unzip build-essential
+            apt-get update && apt-get install -y wget unzip build-essential maven
             wget https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -O /usr/local/bin/bazel
             chmod +x /usr/local/bin/bazel
             bazel build @fastfilter_cpp//:fastfilter_cpp_ffi_${{ matrix.platform }} \
