@@ -48,20 +48,39 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-bazel-
     
-    - name: Build with Maven
-      run: mvn clean compile -B
+    - name: Build with Maven  
+      run: |
+        # Create local maven settings to avoid authentication issues
+        mkdir -p ~/.m2
+        cat > ~/.m2/settings.xml << 'EOF'
+        <settings>
+          <profiles>
+            <profile>
+              <id>disable-github-repos</id>
+              <repositories>
+                <repository>
+                  <id>central</id>
+                  <url>https://repo1.maven.org/maven2</url>
+                </repository>
+              </repositories>
+            </profile>
+          </profiles>
+          <activeProfiles>
+            <activeProfile>disable-github-repos</activeProfile>
+          </activeProfiles>
+        </settings>
+        EOF
+        mvn clean compile -B
     
     - name: Run tests
       run: mvn test -B
     
     - name: Build native libraries
-      run: mvn package -Pnative-libraries -Dbuild.native=true -B
-    
+      run: mvn package -Pnative-libraries -Dbuild.native=true -B     
     - name: Run JMH benchmarks (sample)
       run: |
         cd jmh
-        mvn clean package -B
-        java -jar target/benchmarks.jar -f 1 -wi 1 -i 3 -t 1 -foe true org.fastfilter.ConstructionBenchmark
+        mvn clean package -B         java -jar target/benchmarks.jar -f 1 -wi 1 -i 3 -t 1 -foe true org.fastfilter.ConstructionBenchmark
     
     - name: Upload native artifacts
       uses: actions/upload-artifact@v4
@@ -107,8 +126,7 @@ jobs:
         sudo apt-get install -y mingw-w64 gcc-multilib g++-multilib gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
     
     - name: Build all native libraries (cross-compile)
-      run: mvn package -Pnative-cross-compile -Dbuild.native.cross=true -B
-    
+      run: mvn package -Pnative-cross-compile -Dbuild.native.cross=true -B     
     - name: Upload cross-compiled artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -137,8 +155,7 @@ jobs:
             apt-get update && apt-get install -y wget unzip build-essential maven
             wget https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -O /usr/local/bin/bazel
             chmod +x /usr/local/bin/bazel
-            mvn package -Pnative-libraries -Dbuild.native=true -B
-          "
+            mvn package -Pnative-libraries -Dbuild.native=true -B           "
     
     - name: Upload Linux ARM64 artifacts
       uses: actions/upload-artifact@v4
@@ -220,8 +237,7 @@ jobs:
     - name: Build JMH benchmarks
       run: |
         cd jmh
-        mvn clean package -B
-    
+        mvn clean package -B     
     - name: Run comprehensive benchmarks
       run: |
         cd jmh
