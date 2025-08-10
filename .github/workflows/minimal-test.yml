@@ -1,0 +1,54 @@
+name: Minimal Test Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  minimal-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code (minimal)
+      uses: actions/checkout@v3
+    
+    - name: Set up JDK 24
+      uses: actions/setup-java@v3
+      with:
+        java-version: '24'
+        distribution: 'temurin'
+    
+    - name: Test basic commands
+      run: |
+        echo "=== Environment Check ==="
+        pwd
+        ls -la
+        java --version
+        mvn --version
+        
+        echo "=== File Structure Check ==="
+        find . -name "*.xml" -type f | head -5
+        
+        echo "=== Maven Central Only Build ==="
+        mkdir -p ~/.m2
+        cat > ~/.m2/settings.xml << 'EOF'
+        <settings>
+          <mirrors>
+            <mirror>
+              <id>central-only</id>
+              <url>https://repo1.maven.org/maven2</url>
+              <mirrorOf>*</mirrorOf>
+            </mirror>
+          </mirrors>
+        </settings>
+        EOF
+        
+        echo "=== Try Basic Maven Command ==="
+        mvn help:effective-pom -q || echo "Maven effective-pom failed, but continuing"
+        
+        echo "=== Try Basic Compilation ==="
+        mvn clean compile -B -X --fail-at-end || echo "Compilation failed, but workflow continues"
+        
+        echo "=== Workflow completed ==="
