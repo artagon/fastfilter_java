@@ -135,7 +135,7 @@ class NativeExtractDirectoryTest {
 		Path extractDir = config.getExtractDirectory();
 
 		// Expected structure: {tmpdir}/{appname}-{username}/native-libs
-		String[] pathParts = extractDir.toString().split(File.separator);
+		String[] pathParts = extractDir.toString().split(java.util.regex.Pattern.quote(File.separator));
 
 		assertTrue(pathParts.length >= 2,
 		           "Extract directory should have multiple path components");
@@ -377,7 +377,7 @@ class NativeExtractDirectoryTest {
 
 		// Parse the path to validate structure
 		String fullPath = extractDir.toString();
-		String[] components = fullPath.split(File.separator.equals("\\") ? "\\\\" : File.separator);
+		String[] components = fullPath.split(java.util.regex.Pattern.quote(File.separator));
 
 		assertTrue(components.length >= 3,
 		           "Path should have at least 3 components (root, parent, native-libs)");
